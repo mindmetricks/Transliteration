@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Language Switching Experiment</title>
+
+  <!-- Load jsPsych from local folder -->
+  <script src="jspsych/jspsych.js"></script>
+  <script src="jspsych/plugin-html-keyboard-response.js"></script>
+  <script src="jspsych/plugin-survey-html-form.js"></script> <!-- For the demographics form -->
+  <script src="jspsych/plugin-instructions.js"></script>
+  <link rel="stylesheet" href="jspsych/jspsych.css">
+
+  <!-- Load fflate library for ZIP creation with password protection -->
+  <script src="https://cdn.jsdelivr.net/npm/fflate@0.7.4/umd/index.js"></script>
+</head>
+<body>
+  <div id="jspsych-target"></div>
+
+<script>
+  // Initialize jsPsych
+  const jsPsych = initJsPsych({
+    on_finish: function() {
+        saveData();
+    }
+  });
+
+  // Function to save data as a password-protected ZIP file
+  function saveData() {
+    // Get data in CSV format
+    const csvData = jsPsych.data.get().csv();
+
+    // Create a blob from the CSV data
+    const blob = new Blob([csvData], { type: 'text/csv' });
+
+    // Create a zip file using fflate and password protect it
+    const zip = new fflate.Zip();
+    
+    // Add the CSV file to the zip with password protection
+    zip.add('participant_data.csv', blob, { password: 'securePassword123' });
+
+    // Finalize the zip file and download it
+    zip.ondata = (err, data, final) => {
+      if (final) {
+        // Create a new link element to trigger the download
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob([data], { type: 'application/zip' }));
+        link.download = 'participant_data.zip'; // ZIP file name
+        link.click();
+      }
+    };
+
+    zip.end(); // This finalizes and closes the ZIP
+  }
+
+  // Define the timeline (rest of the code stays the same)
+  let timeline = [];
+
+  // Add demographics form
+  const demographics_form = {
+    type: jsPsychSurveyHtmlForm,
+    preamble: '<h3>Demographics Information</h3><p>Please provide the following information before starting the experiment:</p>',
+    html: `
+      <label for="age">Age:</label><br>
+      <input type="number" id="age" name="age" required><br><br>
+      
+      <label for="gender">Gender:</label><br>
+      <select id="gender" name="gender" required>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+        <option value="non-binary">Non-binary</option>
+        <option value="prefer-not-to-say">Prefer not to say</option>
+      </select><br><br>
+      
+      <label for="language">Native Language:</label><br>
+      <input type="text" id="language" name="language" required><br><br>
+    `,
+    on_finish: function(data) {
+      // Save the demographics data to the dataset
+      jsPsych.data.addProperties({
+        age: data.response.age,
+        gender: data.response.gender,
+        native_language: data.response.language
+      });
+    }
+  };
+  timeline.push(demographics_form);
+
+  // Add the rest of the timeline and tasks (same as your current code)
+  
+  // Start the experiment
+  jsPsych.run(timeline);
+
+  // Function to generate trials (same as your current code)
+  function createTrials(blockStimuli, isSwitchBlock = false) {
+    let trials = [];
+    let previousLanguage = null;
+
+    for (let i = 0; i < blockStimuli.length; i++) {
+      let isSwitch = (previousLanguage !== null && previousLanguage !== blockStimuli[i].language);
+      trials.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: blockStimuli[i].word,
+        choices: ['f', 'j'],
+        data: {
+          language: blockStimuli[i].language,
+          is_word: blockStimuli[i].is_word,
+          is_switch: isSwitchBlock ? isSwitch : false,
+          block: blockStimuli[i].block
+        },
+        on_finish: function(data) {
+          data.correct = (data.response == 'f' && data.is_word) || (data.response == 'j' && !data.is_word);
+          data.rt = jsPsych.data.getLastTrialData().values()[0].rt;
+        },
+        stimulus_duration: 300,
+        trial_duration: 1000,
+        post_trial_gap: 500
+      });
+      previousLanguage = blockStimuli[i].language;
+    }
+
+    return trials;
+  }
+</script>
+</body>
+</html>

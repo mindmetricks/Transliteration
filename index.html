@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Language Switching Experiment</title>
+
+  <!-- Load jsPsych from local folder -->
+  <script src="jspsych/jspsych.js"></script>
+  <script src="jspsych/plugin-html-keyboard-response.js"></script>
+  <script src="jspsych/plugin-survey-html-form.js"></script> <!-- For the demographics form -->
+  <script src="jspsych/plugin-instructions.js"></script>
+  <link rel="stylesheet" href="jspsych/jspsych.css">
+
+</head>
+<body>
+  <div id="jspsych-target"></div>
+
+<script>
+  // Initialize jsPsych
+  const jsPsych = initJsPsych({
+    on_finish: function() {
+        saveData();
+    }
+  });
+  
+  // Function to save data
+  function saveData() {
+    // Get data in CSV format
+    const csvData = jsPsych.data.get().csv();
+    
+    // Create a blob from the CSV data
+    const blob = new Blob([csvData], { type: 'text/csv' });
+  
+    // Create a link element for download
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.download = 'participant_data.csv'; // File name for the download
+    link.click();
+  }
+  
+  // Define the timeline
+  let timeline = [];
+
+  // Add demographics form
+  const demographics_form = {
+    type: jsPsychSurveyHtmlForm,
+    preamble: '<h3>Demographics Information</h3><p>Please provide the following information before starting the experiment:</p>',
+    html: `
+      <label for="age">Age:</label><br>
+      <input type="number" id="age" name="age" required><br><br>
+      
+      <label for="gender">Gender:</label><br>
+      <select id="gender" name="gender" required>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+        <option value="non-binary">Non-binary</option>
+        <option value="prefer-not-to-say">Prefer not to say</option>
+      </select><br><br>
+      
+      <label for="language">Native Language:</label><br>
+      <input type="text" id="language" name="language" required><br><br>
+    `,
+    on_finish: function(data) {
+      // Save the demographics data to the dataset
+      jsPsych.data.addProperties({
+        age: data.response.age,
+        gender: data.response.gender,
+        native_language: data.response.language
+      });
+    }
+  };
+  timeline.push(demographics_form);
+
+  // Instructions
+  const instructions = {
+    type: jsPsychInstructions,
+    pages: [
+      'Welcome to the language proficiency experiment.',
+      'You will complete two tasks: First, a lexical decision task in English, followed by a similar task in Hindi. You will need to decide if the presented stimuli are valid words or not.',
+      'Press "f" for valid words, and "j" for non-words.',
+      'Press any key to begin.'
+    ],
+    show_clickable_nav: true
+  };
+  timeline.push(instructions);
+
+// Lexical Decision Task (English)
+const english_words = [
+  'chair', 'apple', 'table', 'book', 'flower', 'guitar', 'window', 'school', 
+  'computer', 'pencil', 'garden', 'house', 'water', 'phone', 'river', 'mountain',
+  'car', 'train', 'butterfly', 'bridge'
+];
+
+const english_nonwords = [
+  'brif', 'crowst', 'plok', 'glort', 'sprim', 'blist', 'flern', 'grine', 
+  'drindle', 'tovle', 'spang', 'murn', 'glarm', 'jurnip', 'dret', 'clerm',
+  'frilt', 'brone', 'zindle', 'splore'
+];
+
+  let english_stimuli = [];
+  for (let i = 0; i < english_words.length; i++) {
+    english_stimuli.push({ stimulus: english_words[i], is_word: true });
+  }
+  for (let i = 0; i < english_nonwords.length; i++) {
+    english_stimuli.push({ stimulus: english_nonwords[i], is_word: false });
+  }
+
+  const english_lexical_decision_task = {
+    timeline: [{
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: function() { return jsPsych.timelineVariable('stimulus'); },
+      choices: ['f', 'j'],
+      trial_duration: 300,  // Word will disappear after 1000 ms (1 second)
+      post_trial_gap: 1000,   // 500 ms gap before the next stimulus appears
+      data: { task: 'lexical_decision', language: 'English' },
+      on_finish: function(data) {
+        data.correct = (data.response == 'f' && jsPsych.timelineVariable('is_word', true)) ||
+                       (data.response == 'j' && !jsPsych.timelineVariable('is_word', true));
+      }
+    }],
+    timeline_variables: english_stimuli,
+    randomize_order: true
+  };
+  
+  timeline.push(english_lexical_decision_task);
+
+  // Separation page after English task
+  const after_english_task = {
+    type: jsPsychInstructions,
+    pages: [
+      'You have completed the English proficiency task. Next, you will complete a similar task in Hindi. Press any key to continue.'
+    ],
+    show_clickable_nav: true
+  };
+  timeline.push(after_english_task);
+
+// Lexical Decision Task (Hindi)
+const hindi_words = [
+    'घर', 'खाना', 'पानी', 'लड़का', 
+    'बस्ता', 'आसमान', 'फूल', 'पेड़', 'किताब', 'खेल', 'बाज़ार', 
+    'नदी', 'स्कूल', 'कुत्ता', 'बिल्ली', 'घड़ी', 'मेज', 'कुर्सी', 'ताला', 
+    'चाबी', 'दरवाज़ा', 'खिड़की', 'गाड़ी', 'सड़क', 'चाय', 'बच्चा', 
+    'कपड़ा', 'झील', 'बर्फ', 'सूरज', 'चाँद', 'तारा', 'समुद्र', 'रास्ता', 
+    'हवा', 'धूप', 'छाया', 'शहर', 'गांव', 'समय'
+];
+const hindi_nonwords = [
+    'द्कोल', 'िन्फा', 'टकर', 'मोडी', 'थुरक', 
+    'ग्बाट', 'मिस्क', 'ल्शुन', 'फ्दोल', 'ख्ताप', 'ल्वीक', 
+    'ब्लाम', 'व्जाम', 'श्लोत', 'ग्वान', 'फ्रेक', 'ज्बाफ', 
+    'ट्खिप', 'व्लाट', 'क्मीक', 'ड्बोश', 'न्ट्राफ', 'व्षोम', 
+    'ब्कोब', 'श्लाक', 'घ्राक', 'ज्लाप', 'ड्सुम', 'फ्रिस्क', 
+    'घ्लोट', 'श्निब', 'म्फाक', 'ल्सीम', 'प्टोल', 'म्लाद',
+    'व्कोर', 'प्सुर', 'ट्कोट', 'क्रोट'
+];
+
+
+  let hindi_stimuli = [];
+  for (let i = 0; i < hindi_words.length; i++) {
+    hindi_stimuli.push({ stimulus: hindi_words[i], is_word: true });
+  }
+  for (let i = 0; i < hindi_nonwords.length; i++) {
+    hindi_stimuli.push({ stimulus: hindi_nonwords[i], is_word: false });
+  }
+
+  const hindi_lexical_decision_task = {
+    timeline: [{
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: function() { return jsPsych.timelineVariable('stimulus'); },
+      choices: ['f', 'j'],
+      trial_duration: 300,  // Word will disappear after 1000 ms (1 second)
+      post_trial_gap: 1000,   // 500 ms gap before the next stimulus appears
+      data: { task: 'lexical_decision', language: 'Hindi' },
+      on_finish: function(data) {
+        data.correct = (data.response == 'f' && jsPsych.timelineVariable('is_word', true)) ||
+                       (data.response == 'j' && !jsPsych.timelineVariable('is_word', true));
+      }
+    }],
+    timeline_variables: hindi_stimuli,
+    randomize_order: true
+  };
+  timeline.push(hindi_lexical_decision_task);
+
+  // Separation page after Hindi task
+  const after_hindi_task = {
+    type: jsPsychInstructions,
+    pages: [
+      'You have completed the Hindi proficiency task. Next, you will move to the main experiment. Press any key to continue.'
+    ],
+    show_clickable_nav: true
+  };
+  timeline.push(after_hindi_task);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  // Define Block 1 (Native Script)
+  const block1_stimuli = [
+    // Hindi Words (25 Real)
+    { word: 'घर', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'खाना', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'किताब', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'बच्चा', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'स्कूल', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'पानी', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'खेल', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'संगीत', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'दोस्त', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'दुनिया', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'पैसा', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'सपना', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'सूरज', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'आकाश', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'गाँव', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'मंदिर', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'नदिया', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'रास्ता', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'चाय', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'दिल', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'समय', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'बादल', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'फूल', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'प्यार', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'रोटी', language: 'Hindi', is_word: true, block: 'Native' },
+
+    // Hindi Non-Words (25)
+    { word: 'िन्फा', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'भानर', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'जपात', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'लिथार', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'संत्रा', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'कथूर', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'धोहर', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'दरिन', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'पसमे', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'वीनख', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'हानक', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'गरजा', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'तोबन', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'मनखा', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'खिसन', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'टनाग', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'गोहर', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'बानफ', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'निताब', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'धोगर', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'करनम', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'फलचर', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'वासुक', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'गथूर', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'लोथी', language: 'Hindi', is_word: false, block: 'Native' },
+
+    // English Words (25 Real)
+    { word: 'chair', language: 'English', is_word: true, block: 'Native' },
+    { word: 'apple', language: 'English', is_word: true, block: 'Native' },
+    { word: 'table', language: 'English', is_word: true, block: 'Native' },
+    { word: 'house', language: 'English', is_word: true, block: 'Native' },
+    { word: 'music', language: 'English', is_word: true, block: 'Native' },
+    { word: 'friend', language: 'English', is_word: true, block: 'Native' },
+    { word: 'book', language: 'English', is_word: true, block: 'Native' },
+    { word: 'school', language: 'English', is_word: true, block: 'Native' },
+    { word: 'water', language: 'English', is_word: true, block: 'Native' },
+    { word: 'game', language: 'English', is_word: true, block: 'Native' },
+    { word: 'sun', language: 'English', is_word: true, block: 'Native' },
+    { word: 'sky', language: 'English', is_word: true, block: 'Native' },
+    { word: 'love', language: 'English', is_word: true, block: 'Native' },
+    { word: 'street', language: 'English', is_word: true, block: 'Native' },
+    { word: 'cloud', language: 'English', is_word: true, block: 'Native' },
+    { word: 'car', language: 'English', is_word: true, block: 'Native' },
+    { word: 'phone', language: 'English', is_word: true, block: 'Native' },
+    { word: 'dream', language: 'English', is_word: true, block: 'Native' },
+    { word: 'river', language: 'English', is_word: true, block: 'Native' },
+    { word: 'food', language: 'English', is_word: true, block: 'Native' },
+    { word: 'tree', language: 'English', is_word: true, block: 'Native' },
+    { word: 'flower', language: 'English', is_word: true, block: 'Native' },
+    { word: 'world', language: 'English', is_word: true, block: 'Native' },
+    { word: 'star', language: 'English', is_word: true, block: 'Native' },
+    { word: 'money', language: 'English', is_word: true, block: 'Native' },
+
+    // English Non-Words (25)
+    { word: 'brif', language: 'English', is_word: false, block: 'Native' },
+    { word: 'dratch', language: 'English', is_word: false, block: 'Native' },
+    { word: 'frond', language: 'English', is_word: false, block: 'Native' },
+    { word: 'splim', language: 'English', is_word: false, block: 'Native' },
+    { word: 'wurtle', language: 'English', is_word: false, block: 'Native' },
+    { word: 'blark', language: 'English', is_word: false, block: 'Native' },
+    { word: 'glert', language: 'English', is_word: false, block: 'Native' },
+    { word: 'snope', language: 'English', is_word: false, block: 'Native' },
+    { word: 'miver', language: 'English', is_word: false, block: 'Native' },
+    { word: 'thape', language: 'English', is_word: false, block: 'Native' },
+    { word: 'plerm', language: 'English', is_word: false, block: 'Native' },
+    { word: 'crift', language: 'English', is_word: false, block: 'Native' },
+    { word: 'splan', language: 'English', is_word: false, block: 'Native' },
+    { word: 'trake', language: 'English', is_word: false, block: 'Native' },
+    { word: 'blabe', language: 'English', is_word: false, block: 'Native' },
+    { word: 'kinkle', language: 'English', is_word: false, block: 'Native' },
+    { word: 'florn', language: 'English', is_word: false, block: 'Native' },
+    { word: 'smite', language: 'English', is_word: false, block: 'Native' },
+    { word: 'drost', language: 'English', is_word: false, block: 'Native' },
+    { word: 'nucker', language: 'English', is_word: false, block: 'Native' },
+    { word: 'glint', language: 'English', is_word: false, block: 'Native' },
+    { word: 'scran', language: 'English', is_word: false, block: 'Native' },
+    { word: 'brone', language: 'English', is_word: false, block: 'Native' },
+    { word: 'clant', language: 'English', is_word: false, block: 'Native' },
+    { word: 'floom', language: 'English', is_word: false, block: 'Native' },
+  ];
+
+  const block1_trials = createTrials(block1_stimuli, true);
+
+
+  // Define Block 2 (Hinglish)
+  const block2_stimuli = [
+    // Hindi Words (with transliteration)
+    { word: 'ghar', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'khana', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'paani', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'dost', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'suno', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'kitab', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'gaadi', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'billi', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'phool', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'chand', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'sitar', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'dil', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'safed', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'khaana', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'chehra', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'aangan', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'khushi', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'baag', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'bacha', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'mandir', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'nadi', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'bijli', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'saanp', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'sukh', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'garmi', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'daaru', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    
+    // Hindi Non-Words
+    { word: 'diljha', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'phoolg', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'khano', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'gumar', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'tukpa', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'nanaaj', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'sroka', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'gikha', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'karja', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'sufra', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'bihli', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'magiya', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'hunjha', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'dunama', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'chikhli', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'parn', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'sofra', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'kulka', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'sukadi', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'mukrat', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'runda', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'gunda', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'mashru', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'banda', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'daska', language: 'Hindi', is_word: false, block: 'Hinglish' },
+
+    // English Words
+    { word: 'dog', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'cat', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'tree', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'bird', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'fish', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'house', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'car', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'table', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'cup', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'plate', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'shoe', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'phone', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'window', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'computer', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'key', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'light', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'bottle', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'bread', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'fruit', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'sandwich', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'umbrella', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'clock', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'glass', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'paper', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'chair', language: 'English', is_word: true, block: 'Hinglish' },
+
+    // English Non-Words
+    { word: 'dorg', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'catt', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'trea', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'birr', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'fissh', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'houss', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'karr', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'taabl', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'cupp', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'plait', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'shoo', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'phon', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'windw', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'compu', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'kye', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'litght', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'botel', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'breadd', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'frut', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'sandwichh', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'umbrellaa', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'clokk', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'glasse', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'papr', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'chaer', language: 'English', is_word: false, block: 'Hinglish' },
+  ];
+
+  const block2_trials = createTrials(block2_stimuli, true);
+
+
+  // Define Block 3 (Engdi)
+  const block3_stimuli = [
+    // Hindi Words (25 Real)
+    { word: 'पेड़', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'सूरजमुखी', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'पुस्तक', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'खिड़की', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'चाँद', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'दूध', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'गाड़ी', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'पंखा', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'सड़क', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'बाग', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'फसल', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'नाश्ता', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'चाबी', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'फूलों', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'तारा', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'बच्चियाँ', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'गुलाब', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'संगीतकार', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'कपड़ा', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'स्वागत', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'चित्र', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'सपने', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'खुशी', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'सदस्य', language: 'Hindi', is_word: true, block: 'Engdi' },
+    
+    // Hindi Non-Words (25)
+    { word: 'किराव', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'जिरवह', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'खोकल', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'गुलसंग', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'दमर', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'सरम', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'तिलफ', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'धुरब', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'फलव', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'बाजेर', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'लुरिव', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'ध्वफर', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'शफिर', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'जिर्क', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'नीधव', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'भिलास', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'गेलफ', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'फोटल', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'द्रात', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'संपल', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'पुर्मि', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'तुरज', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'धखर', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'गमध', language: 'Hindi', is_word: false, block: 'Engdi' },
+
+    // English Words (25 Real)
+    { word: 'कंप्यूटर', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'रिवर', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'गार्डन', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'ओशन', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'माउंटेन', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'बीच', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'फॉरेस्ट', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'बाइसिकल', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'विंडो', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'जैकेट', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'बलून', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'कपकेक', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'ब्लैंकेट', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'गिटार', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'पिलो', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'सॉक्स', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'क्लॉक', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'नोटबुक', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'कैमरा', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'बैकपैक', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'कैंडल', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'टेलीविज़न', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'अंब्रेला', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'किचन', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'टेलिस्कोप', language: 'English', is_word: true, block: 'Engdi' },
+
+    // English Non-Words (25)
+    { word: 'ग्लार्प', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'फ्रिंडल', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'स्क्वी', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'ब्लॉर्फ', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'ट्विडल', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'स्प्लिश', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'ड्रिब', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'गॉर्प', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'स्नर्फ', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'प्लोंक', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'फ्रैप', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'फ्लॉम्प', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'ब्लम', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'जिबर', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'क्रिज़ल', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'क्वॉर्प', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'स्निगल', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'बिज़ल', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'ट्रॉन्क', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'यिबल', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'फ्लिबल', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'क्विबल', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'ज़ूमर', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'ग्लिबल', language: 'English', is_word: false, block: 'Engdi' }
+  ];
+
+
+  const block3_trials = createTrials(block3_stimuli, true);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  timeline.push(...block1_trials);
+    const after_block1 = {
+    type: jsPsychInstructions,
+    pages: [
+      'You have completed Block 1. Next, you will go to Block 2. Press any key to continue.'
+    ],
+    show_clickable_nav: true
+  };
+  timeline.push(after_block1 );
+
+  timeline.push(...block2_trials);
+  const after_block2 = {
+    type: jsPsychInstructions,
+    pages: [
+      'You have completed Block 2. Next, you will go to Block 3. Press any key to continue.'
+    ],
+    show_clickable_nav: true
+  };
+  timeline.push(after_block2 );
+
+  timeline.push(...block3_trials);
+
+  // Separation page after the experimental blocks
+  const after_blocks_task = {
+    type: jsPsychInstructions,
+    pages: [
+      'You have completed the main experiment. Press any key to finish the experiment.'
+    ],
+    show_clickable_nav: true
+  };
+  timeline.push(after_blocks_task);
+
+  // Thank You page
+  const thank_you_page = {
+    type: jsPsychInstructions,
+    pages: [
+      'Thank you for participating in this experiment! Your responses have been recorded. Press any key to finish.'
+    ],
+    show_clickable_nav: true
+  };
+  timeline.push(thank_you_page);
+
+  // Start the experiment
+  jsPsych.run(timeline);
+
+  // Function to generate trials (updated)
+  function createTrials(blockStimuli, isSwitchBlock = false) {
+    let trials = [];
+    let previousLanguage = null;
+
+    for (let i = 0; i < blockStimuli.length; i++) {
+      let isSwitch = (previousLanguage !== null && previousLanguage !== blockStimuli[i].language);
+      trials.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: blockStimuli[i].word,
+        choices: ['f', 'j'],
+        data: {
+          language: blockStimuli[i].language,
+          is_word: blockStimuli[i].is_word,
+          is_switch: isSwitchBlock ? isSwitch : false,
+          block: blockStimuli[i].block
+        },
+        on_finish: function(data) {
+          data.correct = (data.response == 'f' && data.is_word) || (data.response == 'j' && !data.is_word);
+          data.rt = jsPsych.data.getLastTrialData().values()[0].rt;
+        },
+        trial_duration: 300,
+        post_trial_gap: 1000
+      });
+      previousLanguage = blockStimuli[i].language;  // Update the previous language
+    }
+
+    return trials;
+  }
+</script>
+</body>
+</html>
+

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Language Switching Experiment</title>
+
+  <!-- Load jsPsych from local folder -->
+  <script src="jspsych/jspsych.js"></script>
+  <script src="jspsych/plugin-html-keyboard-response.js"></script>
+  <script src="jspsych/plugin-survey-html-form.js"></script> <!-- For the demographics form -->
+  <script src="jspsych/plugin-instructions.js"></script>
+  <link rel="stylesheet" href="jspsych/jspsych.css">
+
+</head>
+<body>
+  <div id="jspsych-target"></div>
+  
+<script>
+  // Initialize jsPsych
+  const jsPsych = initJsPsych({
+    on_finish: function() {
+        saveData();
+    }
+  });
+
+  // Function to save data
+  function saveData() {
+    // Get data in CSV format
+    const csvData = jsPsych.data.get().csv();
+    
+    // Create a blob from the CSV data
+    const blob = new Blob([csvData], { type: 'text/csv' });
+  
+    // Create a link element for download
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.download = 'participant_data.csv'; // File name for the download
+    link.click();
+  }
+  
+  // Variables to track accuracy
+  let english_correct = 0;
+  let english_total = 0;
+  let hindi_correct = 0;
+  let hindi_total = 0;
+
+  // Define the timeline
+  let timeline = [];
+
+  // Add demographics form
+  const demographics_form = {
+    type: jsPsychSurveyHtmlForm,
+    preamble: '<h3>Demographics Information</h3><p>Please provide the following information before starting the experiment:</p>',
+    html: `
+      <label for="age">Age:</label><br>
+      <input type="number" id="age" name="age" required><br><br>
+      <label for="gender">Gender:</label><br>
+      <select id="gender" name="gender" required>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+        <option value="non-binary">Non-binary</option>
+        <option value="prefer-not-to-say">Prefer not to say</option>
+      </select><br><br>
+      
+      <label for="language">Native Language:</label><br>
+      <input type="text" id="language" name="language" required><br><br>
+    `,
+    on_finish: function(data) {
+      // Save the demographics data to the dataset
+      jsPsych.data.addProperties({
+        age: data.response.age,
+        gender: data.response.gender,
+        native_language: data.response.language
+      });
+    }
+  };
+  timeline.push(demographics_form);
+
+  // Instructions
+  const instructions = {
+    type: jsPsychInstructions,
+    pages: [
+      'Welcome to the language proficiency experiment.',
+      'You will complete two tasks: First, a lexical decision task in English, followed by a similar task in Hindi. You will need to decide if the presented stimuli are valid words or not.',
+      'Press "f" for valid words, and "j" for non-words.',
+      'Press any key to begin.'
+    ],
+    show_clickable_nav: true
+  };
+  timeline.push(instructions);
+
+// Lexical Decision Task (English)
+const english_words = [
+  'chair', 'apple', 'table', 'book', 'flower'
+];
+
+const english_nonwords = [
+  'brif', 'crowst', 'plok', 'glort', 'sprim'
+];
+
+  let english_stimuli = [];
+  for (let i = 0; i < english_words.length; i++) {
+    english_stimuli.push({ stimulus: english_words[i], is_word: true });
+  }
+  for (let i = 0; i < english_nonwords.length; i++) {
+    english_stimuli.push({ stimulus: english_nonwords[i], is_word: false });
+  }
+
+  const english_lexical_decision_task = {
+    timeline: [{
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: function() { return jsPsych.timelineVariable('stimulus'); },
+      choices: ['f', 'j'],
+      trial_duration: 300,  // Word will disappear after 1000 ms (1 second)
+      post_trial_gap: 1000,   // 500 ms gap before the next stimulus appears
+      data: { task: 'lexical_decision', language: 'English' },
+      on_finish: function(data) {
+        data.correct = (data.response == 'f' && jsPsych.timelineVariable('is_word', true)) ||
+                       (data.response == 'j' && !jsPsych.timelineVariable('is_word', true));
+        // Update English accuracy
+        english_total++;
+        if (data.correct) {
+          english_correct++;
+        }
+      }
+    }],
+    timeline_variables: english_stimuli,
+    randomize_order: true
+  };
+  
+  timeline.push(english_lexical_decision_task);
+
+  // Separation page after English task
+  const after_english_task = {
+    type: jsPsychInstructions,
+    pages: [
+      'You have completed the English proficiency task. Next, you will complete a similar task in Hindi. Press any key to continue.'
+    ],
+    show_clickable_nav: true
+  };
+  timeline.push(after_english_task);
+
+// Lexical Decision Task (Hindi)
+const hindi_words = [
+    'घर', 'खाना', 'पानी', 'लड़का', 
+    'बस्ता'
+];
+const hindi_nonwords = [
+    'द्कोल', 'िन्फा', 'टकर', 'मोडी', 'थुरक'
+];
+
+  let hindi_stimuli = [];
+  for (let i = 0; i < hindi_words.length; i++) {
+    hindi_stimuli.push({ stimulus: hindi_words[i], is_word: true });
+  }
+  for (let i = 0; i < hindi_nonwords.length; i++) {
+    hindi_stimuli.push({ stimulus: hindi_nonwords[i], is_word: false });
+  }
+
+  const hindi_lexical_decision_task = {
+    timeline: [{
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: function() { return jsPsych.timelineVariable('stimulus'); },
+      choices: ['f', 'j'],
+      trial_duration: 300,  // Word will disappear after 1000 ms (1 second)
+      post_trial_gap: 1000,   // 500 ms gap before the next stimulus appears
+      data: { task: 'lexical_decision', language: 'Hindi' },
+      on_finish: function(data) {
+        data.correct = (data.response == 'f' && jsPsych.timelineVariable('is_word', true)) ||
+                       (data.response == 'j' && !jsPsych.timelineVariable('is_word', true));
+        // Update Hindi accuracy
+        hindi_total++;
+        if (data.correct) {
+          hindi_correct++;
+        }
+      }
+    }],
+    timeline_variables: hindi_stimuli,
+    randomize_order: true
+  };
+  timeline.push(hindi_lexical_decision_task);
+
+
+
+  // Condition check for proceeding to main experiment
+  const accuracy_check = {
+    type: jsPsychInstructions,
+    pages: function() {
+      const english_accuracy = (english_correct / english_total) * 100;
+      const hindi_accuracy = (hindi_correct / hindi_total) * 100;
+      
+      if (english_accuracy > 10 && hindi_accuracy > 10) {
+        return ['Your performance is satisfactory. You will proceed to the main experiment.'];
+      } else {
+        return ['Your accuracy was below 50% in one or both tasks. Unfortunately, you cannot proceed to the main experiment.'];
+      }
+    },
+    show_clickable_nav: true,
+    on_finish: function() {
+      const english_accuracy = (english_correct / english_total) * 100;
+      const hindi_accuracy = (hindi_correct / hindi_total) * 100;
+
+      // Prevent proceeding if accuracy is below threshold
+      if (english_accuracy <= 10 || hindi_accuracy <= 10) {
+        jsPsych.endExperiment('Experiment ended due to low accuracy.');
+      }
+    }
+  };
+  
+  timeline.push(accuracy_check);
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  // Define Block 1 (Native Script)
+  const block1_stimuli = [
+    { word: 'घर', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'खाना', language: 'Hindi', is_word: true, block: 'Native' },
+    { word: 'िन्फा', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'भानर', language: 'Hindi', is_word: false, block: 'Native' },
+    { word: 'chair', language: 'English', is_word: true, block: 'Native' },
+    { word: 'apple', language: 'English', is_word: true, block: 'Native' },
+    { word: 'brif', language: 'English', is_word: false, block: 'Native' },
+    { word: 'dratch', language: 'English', is_word: false, block: 'Native' },
+  ];
+
+  const block1_trials = createTrials(block1_stimuli, true);
+
+
+  // Define Block 2 (Hinglish)
+  const block2_stimuli = [
+    { word: 'ghar', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'khana', language: 'Hindi', is_word: true, block: 'Hinglish' },
+    { word: 'diljha', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'phoolg', language: 'Hindi', is_word: false, block: 'Hinglish' },
+    { word: 'dog', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'cat', language: 'English', is_word: true, block: 'Hinglish' },
+    { word: 'dorg', language: 'English', is_word: false, block: 'Hinglish' },
+    { word: 'catt', language: 'English', is_word: false, block: 'Hinglish' },
+
+  ];
+
+  const block2_trials = createTrials(block2_stimuli, true);
+
+
+  // Define Block 3 (Engdi)
+  const block3_stimuli = [
+    { word: 'पेड़', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'सूरजमुखी', language: 'Hindi', is_word: true, block: 'Engdi' },
+    { word: 'किराव', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'जिरवह', language: 'Hindi', is_word: false, block: 'Engdi' },
+    { word: 'कंप्यूटर', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'रिवर', language: 'English', is_word: true, block: 'Engdi' },
+    { word: 'ग्लार्प', language: 'English', is_word: false, block: 'Engdi' },
+    { word: 'फ्रिंडल', language: 'English', is_word: false, block: 'Engdi' },
+  ];
+
+
+  const block3_trials = createTrials(block3_stimuli, true);
+
+  timeline.push(...block1_trials);
+  const after_block1 = {
+  type: jsPsychInstructions,
+  pages: [
+    'You have completed Block 1. Next, you will go to Block 2. Press any key to continue.'
+  ],
+  show_clickable_nav: true
+};
+timeline.push(after_block1 );
+
+timeline.push(...block2_trials);
+const after_block2 = {
+  type: jsPsychInstructions,
+  pages: [
+    'You have completed Block 2. Next, you will go to Block 3. Press any key to continue.'
+  ],
+  show_clickable_nav: true
+};
+timeline.push(after_block2 );
+
+timeline.push(...block3_trials);
+
+// Separation page after the experimental blocks
+const after_blocks_task = {
+  type: jsPsychInstructions,
+  pages: [
+    'You have completed the main experiment. Press any key to finish the experiment.'
+  ],
+  show_clickable_nav: true
+};
+timeline.push(after_blocks_task);
+
+// Thank You page
+const thank_you_page = {
+  type: jsPsychInstructions,
+  pages: [
+    'Thank you for participating in this experiment! Your responses have been recorded. Press any key to finish.'
+  ],
+  show_clickable_nav: true
+};
+timeline.push(thank_you_page);
+
+// Start the experiment
+jsPsych.run(timeline);
+
+// Function to generate trials (updated)
+function createTrials(blockStimuli, isSwitchBlock = false) {
+  let trials = [];
+  let previousLanguage = null;
+
+  for (let i = 0; i < blockStimuli.length; i++) {
+    let isSwitch = (previousLanguage !== null && previousLanguage !== blockStimuli[i].language);
+    trials.push({
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: blockStimuli[i].word,
+      choices: ['f', 'j'],
+      data: {
+        language: blockStimuli[i].language,
+        is_word: blockStimuli[i].is_word,
+        is_switch: isSwitchBlock ? isSwitch : false,
+        block: blockStimuli[i].block
+      },
+      on_finish: function(data) {
+        data.correct = (data.response == 'f' && data.is_word) || (data.response == 'j' && !data.is_word);
+        data.rt = jsPsych.data.getLastTrialData().values()[0].rt;
+      },
+      trial_duration: 300,
+      post_trial_gap: 1000
+    });
+    previousLanguage = blockStimuli[i].language;  // Update the previous language
+  }
+
+  return trials;
+}
+</script>
+</body>
+</html>
+
